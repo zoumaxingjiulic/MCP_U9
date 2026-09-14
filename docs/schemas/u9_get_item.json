@@ -1,0 +1,289 @@
+{
+  "name": "u9_get_item",
+  "title": "查询单个料品",
+  "description": "在服务绑定的企业及授权组织中，按准确料号查询一个料品档案。必须提供 organization_code 和 item_code，保留编码前导零。返回品名、规格、组织以及库存/采购/销售单位；无匹配返回空列表。不支持模糊查询、跨组织查询、库存数量或金额统计，也不修改料品。",
+  "inputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "organization_code": {
+        "description": "服务配置中已授权的组织编码",
+        "maxLength": 100,
+        "minLength": 1,
+        "title": "Organization Code",
+        "type": "string"
+      },
+      "item_code": {
+        "description": "准确料号，保留前导零，不支持模糊匹配",
+        "maxLength": 100,
+        "minLength": 1,
+        "title": "Item Code",
+        "type": "string"
+      }
+    },
+    "required": [
+      "organization_code",
+      "item_code"
+    ],
+    "title": "ItemQuery",
+    "type": "object"
+  },
+  "outputSchema": {
+    "$defs": {
+      "Archive": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^[1-9][0-9]*$",
+            "title": "Id",
+            "type": "string"
+          },
+          "code": {
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name"
+        ],
+        "title": "Archive",
+        "type": "object"
+      },
+      "ErrorInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": [
+              "INVALID_ARGUMENT",
+              "PERMISSION_DENIED",
+              "AUTH_FAILED",
+              "AMBIGUOUS_ENTITY",
+              "UPSTREAM_TIMEOUT",
+              "UPSTREAM_UNAVAILABLE",
+              "UPSTREAM_FORMAT_CHANGED",
+              "UPSTREAM_ERROR",
+              "INTERNAL_ERROR"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "retryable": {
+            "title": "Retryable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "retryable"
+        ],
+        "title": "ErrorInfo",
+        "type": "object"
+      },
+      "Item": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^[1-9][0-9]*$",
+            "title": "Id",
+            "type": "string"
+          },
+          "code": {
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "specifications": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specifications"
+          },
+          "organization": {
+            "$ref": "#/$defs/Archive"
+          },
+          "inventory_unit": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Archive"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "purchase_unit": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Archive"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sales_unit": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Archive"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "specifications",
+          "organization",
+          "inventory_unit",
+          "purchase_unit",
+          "sales_unit"
+        ],
+        "title": "Item",
+        "type": "object"
+      },
+      "ItemQuery": {
+        "additionalProperties": false,
+        "properties": {
+          "organization_code": {
+            "description": "服务配置中已授权的组织编码",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Organization Code",
+            "type": "string"
+          },
+          "item_code": {
+            "description": "准确料号，保留前导零，不支持模糊匹配",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Item Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization_code",
+          "item_code"
+        ],
+        "title": "ItemQuery",
+        "type": "object"
+      },
+      "QueryResult": {
+        "additionalProperties": false,
+        "properties": {
+          "enterprise_code": {
+            "title": "Enterprise Code",
+            "type": "string"
+          },
+          "query": {
+            "$ref": "#/$defs/ItemQuery"
+          },
+          "total": {
+            "enum": [
+              0,
+              1
+            ],
+            "title": "Total",
+            "type": "integer"
+          },
+          "returned": {
+            "enum": [
+              0,
+              1
+            ],
+            "title": "Returned",
+            "type": "integer"
+          },
+          "has_more": {
+            "const": false,
+            "default": false,
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/$defs/Item"
+            },
+            "maxItems": 1,
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "enterprise_code",
+          "query",
+          "total",
+          "returned",
+          "items"
+        ],
+        "title": "QueryResult",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "trace_id": {
+        "title": "Trace Id",
+        "type": "string"
+      },
+      "success": {
+        "title": "Success",
+        "type": "boolean"
+      },
+      "data": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/QueryResult"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "error": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ErrorInfo"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "trace_id",
+      "success"
+    ],
+    "title": "ToolResult",
+    "type": "object"
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "openWorldHint": false
+  }
+}

@@ -1,0 +1,31 @@
+services:
+  u9-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: u9-cloud-mcp:0.2.0
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${MCP_BIND_IP:-127.0.0.1}:${MCP_PORT:-8000}:8000"
+    environment:
+      U9_BASE_URL: "${U9_BASE_URL:?U9_BASE_URL is required}"
+      U9_ALLOW_HTTP: "${U9_ALLOW_HTTP:-false}"
+      U9_CLIENT_ID: "${U9_CLIENT_ID:?U9_CLIENT_ID is required}"
+      U9_CLIENT_SECRET: "${U9_CLIENT_SECRET:?U9_CLIENT_SECRET is required}"
+      U9_ENT_CODE: "${U9_ENT_CODE:?U9_ENT_CODE is required}"
+      U9_ORG_CODE: "${U9_ORG_CODE:?U9_ORG_CODE is required}"
+      U9_USER_CODE: "${U9_USER_CODE:?U9_USER_CODE is required}"
+      MCP_ACCESS_TOKEN: "${MCP_ACCESS_TOKEN:?MCP_ACCESS_TOKEN is required}"
+      MCP_ALLOWED_HOSTS: "${MCP_ALLOWED_HOSTS:?MCP_ALLOWED_HOSTS is required}"
+      MCP_ALLOWED_ORIGINS: "${MCP_ALLOWED_ORIGINS:-}"
+      MCP_MAX_REQUEST_BODY_SIZE: "${MCP_MAX_REQUEST_BODY_SIZE:-1048576}"
+      MCP_MAX_SESSIONS: "${MCP_MAX_SESSIONS:-64}"
+      MCP_SESSION_IDLE_TIMEOUT: "${MCP_SESSION_IDLE_TIMEOUT:-300}"
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
