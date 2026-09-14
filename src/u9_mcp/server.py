@@ -39,7 +39,7 @@ def create_server(settings: Settings, *, transport=None) -> Server:
         return await items.execute(context.lifespan_context, params.arguments or {})
 
     return Server(
-        "u9-cloud-mcp", version="0.2.0", lifespan=lifespan, on_list_tools=list_tools, on_call_tool=call_tool
+        "u9-cloud-mcp", version="0.3.0", lifespan=lifespan, on_list_tools=list_tools, on_call_tool=call_tool
     )
 
 

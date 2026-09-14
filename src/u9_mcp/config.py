@@ -96,3 +96,55 @@ def load_http_settings(env_file: Path | None = None) -> HttpSettings:
             "session_idle_timeout": source.get("MCP_SESSION_IDLE_TIMEOUT", "300"),
         }
     )
+
+
+class ChatSettings(BaseModel):
+    """Private configuration for the human-operated MCP test console."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, hide_input_in_errors=True)
+    dashscope_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    dashscope_api_key: SecretStr
+    dashscope_model: str
+    mcp_url: str = "http://u9-mcp:8000/mcp"
+    mcp_access_token: SecretStr
+    chat_access_token: SecretStr
+
+    @field_validator("dashscope_base_url", "mcp_url", "dashscope_model")
+    @classmethod
+    def chat_value_not_blank(cls, value: str) -> str:
+        if not value or value != value.strip() or any(ord(c) < 32 for c in value):
+            raise ValueError("聊天配置不能为空或包含首尾空白/控制字符")
+        return value
+
+    @field_validator("dashscope_base_url", "mcp_url")
+    @classmethod
+    def chat_url_is_http(cls, value: str) -> str:
+        url = urlsplit(value)
+        if url.scheme not in {"http", "https"} or not url.hostname or url.query or url.fragment:
+            raise ValueError("服务地址必须是不含查询参数或片段的 HTTP(S) 地址")
+        return value.rstrip("/")
+
+    @field_validator("dashscope_api_key", "mcp_access_token", "chat_access_token")
+    @classmethod
+    def console_token_is_strong(cls, value: SecretStr) -> SecretStr:
+        token = value.get_secret_value()
+        if not 32 <= len(token) <= 512 or token != token.strip() or any(ord(c) < 33 for c in token):
+            raise ValueError("访问令牌必须是 32–512 个无空白可打印字符")
+        return value
+
+
+def load_chat_settings(env_file: Path | None = None) -> ChatSettings:
+    source = dict(dotenv_values(env_file)) if env_file is not None else {}
+    source.update(os.environ)
+    return ChatSettings.model_validate(
+        {
+            "dashscope_base_url": source.get(
+                "DASHSCOPE_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"
+            ),
+            "dashscope_api_key": source.get("DASHSCOPE_API_KEY", ""),
+            "dashscope_model": source.get("DASHSCOPE_MODEL", ""),
+            "mcp_url": source.get("CHAT_MCP_URL", "http://u9-mcp:8000/mcp"),
+            "mcp_access_token": source.get("MCP_ACCESS_TOKEN", ""),
+            "chat_access_token": source.get("CHAT_ACCESS_TOKEN", ""),
+        }
+    )
