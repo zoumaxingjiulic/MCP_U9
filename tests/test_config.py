@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from u9_mcp.config import load_http_settings
+from u9_mcp.config import load_http_settings, load_local_chat_settings
 
 
 def write_env(tmp_path: Path, **values: str) -> Path:
@@ -49,3 +49,33 @@ def test_http_settings_reject_weak_token_or_invalid_hosts(tmp_path, monkeypatch,
     monkeypatch.delenv("MCP_ALLOWED_HOSTS", raising=False)
     with pytest.raises(ValidationError):
         load_http_settings(write_env(tmp_path, MCP_ACCESS_TOKEN=token, MCP_ALLOWED_HOSTS=hosts))
+
+
+def test_local_chat_requires_an_explicit_remote_mcp_endpoint(tmp_path, monkeypatch):
+    for key in [
+        "DASHSCOPE_API_KEY",
+        "DASHSCOPE_MODEL",
+        "LOCAL_CHAT_MCP_URL",
+        "LOCAL_CHAT_MCP_ACCESS_TOKEN",
+    ]:
+        monkeypatch.delenv(key, raising=False)
+    settings = load_local_chat_settings(
+        write_env(
+            tmp_path,
+            DASHSCOPE_API_KEY="synthetic-dashscope-key-" + "x" * 32,
+            DASHSCOPE_MODEL="synthetic-model",
+            LOCAL_CHAT_MCP_URL="http://127.0.0.1:18001/mcp",
+            LOCAL_CHAT_MCP_ACCESS_TOKEN="synthetic-mcp-token-" + "x" * 32,
+        )
+    )
+    assert settings.mcp_url == "http://127.0.0.1:18001/mcp"
+
+    with pytest.raises(ValidationError):
+        load_local_chat_settings(
+            write_env(
+                tmp_path,
+                DASHSCOPE_API_KEY="synthetic-dashscope-key-" + "x" * 32,
+                DASHSCOPE_MODEL="synthetic-model",
+                LOCAL_CHAT_MCP_ACCESS_TOKEN="synthetic-mcp-token-" + "x" * 32,
+            )
+        )

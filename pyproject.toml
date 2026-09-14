@@ -18,7 +18,7 @@ dependencies = [
 
 [project.scripts]
 u9-mcp = "u9_mcp.server:main"
-u9-chat-console = "u9_mcp.chat_console:main"
+u9-local-chat = "u9_mcp.local_chat:main"
 
 [dependency-groups]
 dev = ["pytest==9.1.1", "pytest-asyncio==1.4.0", "jsonschema==4.26.0", "ruff==0.16.6"]

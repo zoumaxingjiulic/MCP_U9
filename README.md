@@ -80,24 +80,25 @@ uv run python scripts/verify_live_mcp_http.py \
 
 `/healthz` 仅表示 MCP 进程存活，不读取配置或探测 ERP。业务可用性应以授权料号的 MCP 查询及 ERP 页面字段核对为准。当前静态 Bearer 令牌适用于单一受信调用方；多人独立身份、OAuth 和按用户映射 ERP 权限属于后续阶段。
 
-## 浏览器联调控制台
+## 本地聊天页面
 
-Compose 还提供一个仅供人工验证的浏览器页面。页面后端调用 DashScope OpenAI 兼容接口，并通过官方 MCP 客户端连接 `u9-mcp`；DashScope API Key 和 `MCP_ACCESS_TOKEN` 不会发送到浏览器。
-
-在服务器私有 `.env` 中配置以下值，并分别生成 `CHAT_ACCESS_TOKEN`：
+Docker 只部署 `u9-mcp`。如需用聊天页面验证，先在本机从 `local-chat.env.example` 复制出私有 `.local-chat.env`，把模型 API Key、远程 MCP 地址和 MCP 访问令牌填入其中；不要复制到服务器：
 
 ```env
 DASHSCOPE_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-DASHSCOPE_API_KEY=仅保存在服务器.env中的密钥
+DASHSCOPE_API_KEY=本机保存的模型密钥
 DASHSCOPE_MODEL=deepseek-v4-flash-0731
-CHAT_ACCESS_TOKEN=单独生成的控制台访问令牌
-CHAT_BIND_IP=0.0.0.0
-CHAT_PORT=18002
+LOCAL_CHAT_MCP_URL=http://服务器IP:18001/mcp
+LOCAL_CHAT_MCP_ACCESS_TOKEN=服务器.env中的MCP_ACCESS_TOKEN
 ```
 
-将 `u9-mcp:8000` 加入 `MCP_ALLOWED_HOSTS`，使控制台容器能通过内部网络连接 MCP 服务。重新启动后访问 `http://服务器IP:18002/`，输入 `CHAT_ACCESS_TOKEN`，先点击“检查 MCP 连接”，再提交问题。页面会展示模型回答与每次 MCP 工具调用的结构化结果，便于核对工具是否真的被调用。
+在本机执行以下命令，然后访问 `http://127.0.0.1:8001/`。页面后端以官方 MCP 客户端访问远程服务，模型密钥和 MCP 令牌都不会传到浏览器。
 
-该页面是内网联调入口，带有独立令牌验证；不要把它或 HTTP 端口暴露到公网。模型只能使用已发布的只读 MCP 工具，不能获得 ERP 登录密码或应用密钥。
+```powershell
+uv run u9-local-chat --env-file .local-chat.env
+```
+
+本地聊天页面只绑定 `127.0.0.1`，页面会展示模型回答和 MCP 调用记录。服务器的 `MCP_ALLOWED_HOSTS` 必须包含服务器对外访问所用的 Host，例如 `192.168.1.33:18001`；本地页面只需要访问服务器的 MCP 端口，不能访问 ERP 密码或应用密钥。
 
 工具输入：
 
@@ -120,7 +121,7 @@ src/u9_mcp/
   tools/           MCP 工具定义与结构化结果
   server.py        官方 SDK 生命周期、stdio 与 Streamable HTTP 入口
   http.py          HTTP Bearer 认证和存活检查
-  chat_console.py  DashScope + MCP 的人工联调页面
+  local_chat.py    仅本机运行的 DashScope + 远程 MCP 聊天页面
 tests/             纯虚构数据，模拟 ERP 与真实 stdio/HTTP MCP 子进程
 scripts/           文档盘点、最小探测、Schema 导出和真实验收
 examples/          独立 MCP 查询客户端

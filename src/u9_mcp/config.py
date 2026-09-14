@@ -98,16 +98,15 @@ def load_http_settings(env_file: Path | None = None) -> HttpSettings:
     )
 
 
-class ChatSettings(BaseModel):
-    """Private configuration for the human-operated MCP test console."""
+class LocalChatSettings(BaseModel):
+    """Private configuration for the local browser chat client."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, hide_input_in_errors=True)
     dashscope_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     dashscope_api_key: SecretStr
     dashscope_model: str
-    mcp_url: str = "http://u9-mcp:8000/mcp"
+    mcp_url: str
     mcp_access_token: SecretStr
-    chat_access_token: SecretStr
 
     @field_validator("dashscope_base_url", "mcp_url", "dashscope_model")
     @classmethod
@@ -124,7 +123,7 @@ class ChatSettings(BaseModel):
             raise ValueError("服务地址必须是不含查询参数或片段的 HTTP(S) 地址")
         return value.rstrip("/")
 
-    @field_validator("dashscope_api_key", "mcp_access_token", "chat_access_token")
+    @field_validator("dashscope_api_key", "mcp_access_token")
     @classmethod
     def console_token_is_strong(cls, value: SecretStr) -> SecretStr:
         token = value.get_secret_value()
@@ -133,18 +132,17 @@ class ChatSettings(BaseModel):
         return value
 
 
-def load_chat_settings(env_file: Path | None = None) -> ChatSettings:
+def load_local_chat_settings(env_file: Path | None = None) -> LocalChatSettings:
     source = dict(dotenv_values(env_file)) if env_file is not None else {}
     source.update(os.environ)
-    return ChatSettings.model_validate(
+    return LocalChatSettings.model_validate(
         {
             "dashscope_base_url": source.get(
                 "DASHSCOPE_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"
             ),
             "dashscope_api_key": source.get("DASHSCOPE_API_KEY", ""),
             "dashscope_model": source.get("DASHSCOPE_MODEL", ""),
-            "mcp_url": source.get("CHAT_MCP_URL", "http://u9-mcp:8000/mcp"),
-            "mcp_access_token": source.get("MCP_ACCESS_TOKEN", ""),
-            "chat_access_token": source.get("CHAT_ACCESS_TOKEN", ""),
+            "mcp_url": source.get("LOCAL_CHAT_MCP_URL", ""),
+            "mcp_access_token": source.get("LOCAL_CHAT_MCP_ACCESS_TOKEN", ""),
         }
     )

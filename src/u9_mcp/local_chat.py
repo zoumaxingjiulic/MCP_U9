@@ -1,10 +1,10 @@
-"""Small, human-operated web console for testing the U9 read-only MCP service."""
+"""Local-only browser chat page that connects to a remote U9 MCP service."""
 
 import argparse
 import json
 import logging
-import secrets
 import sys
+from pathlib import Path
 from typing import Any, Protocol
 
 import httpx
@@ -17,9 +17,8 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse
 from starlette.routing import Route
-from starlette.types import ASGIApp, Receive, Scope, Send
 
-from .config import ChatSettings, load_chat_settings
+from .config import LocalChatSettings, load_local_chat_settings
 
 SYSTEM_PROMPT = """你是 U9 ERP 的只读查询助手。仅在需要 ERP 数据时调用提供的工具；
 不要编造料品、组织、状态或接口结果。若工具返回错误或空结果，直接说明。不要尝试写入、
@@ -31,14 +30,14 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2_000)
 
 
-class ConsoleService(Protocol):
+class LocalChatServiceProtocol(Protocol):
     async def status(self) -> dict[str, Any]: ...
 
     async def answer(self, message: str) -> dict[str, Any]: ...
 
 
-class U9ChatService:
-    def __init__(self, settings: ChatSettings):
+class LocalChatService:
+    def __init__(self, settings: LocalChatSettings):
         self.settings = settings
 
     async def _model(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]) -> dict[str, Any]:
@@ -69,7 +68,7 @@ class U9ChatService:
                 tools = (await client.list_tools()).tools
                 return {"model": self.settings.dashscope_model, "tools": [tool.name for tool in tools]}
         except Exception as error:
-            raise RuntimeError("无法连接 MCP 服务") from error
+            raise RuntimeError("无法连接远程 MCP 服务") from error
 
     async def answer(self, question: str) -> dict[str, Any]:
         http_client, client = await self._with_mcp()
@@ -137,28 +136,18 @@ class U9ChatService:
         return {"answer": "模型连续请求工具，已达到本次最多 4 轮的限制。", "trace": trace}
 
 
-class ConsoleAuthMiddleware:
-    def __init__(self, app: ASGIApp, settings: ChatSettings):
-        self.app = app
-        self.expected = settings.chat_access_token.get_secret_value()
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http" or not scope.get("path", "").startswith("/api/"):
-            await self.app(scope, receive, send)
-            return
-        candidate = Request(scope, receive=receive).headers.get("x-chat-access-token", "")
-        if len(candidate) > 512 or not secrets.compare_digest(candidate, self.expected):
-            await JSONResponse({"error": "未授权"}, status_code=401)(scope, receive, send)
-            return
-        await self.app(scope, receive, send)
-
-
 async def index(request: Request) -> HTMLResponse:
     return HTMLResponse(PAGE, headers={"Cache-Control": "no-store"})
 
 
-def create_console_app(settings: ChatSettings, service: ConsoleService | None = None) -> Starlette:
-    service = service or U9ChatService(settings)
+async def health(request: Request) -> JSONResponse:
+    return JSONResponse({"status": "ok"})
+
+
+def create_local_chat_app(
+    settings: LocalChatSettings, service: LocalChatServiceProtocol | None = None
+) -> Starlette:
+    service = service or LocalChatService(settings)
 
     async def status(request: Request) -> JSONResponse:
         try:
@@ -176,7 +165,7 @@ def create_console_app(settings: ChatSettings, service: ConsoleService | None = 
         except RuntimeError as error:
             return JSONResponse({"error": str(error)}, status_code=502)
 
-    app = Starlette(
+    return Starlette(
         routes=[
             Route("/", index),
             Route("/healthz", health),
@@ -184,43 +173,39 @@ def create_console_app(settings: ChatSettings, service: ConsoleService | None = 
             Route("/api/chat", chat, methods=["POST"]),
         ]
     )
-    app.add_middleware(ConsoleAuthMiddleware, settings=settings)
-    return app
-
-
-async def health(request: Request) -> JSONResponse:
-    return JSONResponse({"status": "ok"})
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="U9 MCP human test console")
-    parser.add_argument("--host", default="127.0.0.1")
+    parser = argparse.ArgumentParser(description="Local browser chat for a remote U9 MCP service")
+    parser.add_argument("--env-file", type=Path, default=Path(".env"))
     parser.add_argument("--port", type=int, default=8001)
     args = parser.parse_args()
     logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
     try:
-        settings = load_chat_settings()
-    except (ValidationError, ValueError):
-        print("CONFIG_ERROR: 请检查 DashScope 和聊天控制台私有配置。", file=sys.stderr)
+        settings = load_local_chat_settings(args.env_file)
+    except (ValidationError, OSError, ValueError):
+        print("CONFIG_ERROR: 请检查本机的模型和远程 MCP 私有配置。", file=sys.stderr)
         raise SystemExit(2) from None
     uvicorn.run(
-        create_console_app(settings), host=args.host, port=args.port, access_log=False, server_header=False
+        create_local_chat_app(settings),
+        host="127.0.0.1",
+        port=args.port,
+        access_log=False,
+        server_header=False,
     )
 
 
 PAGE = """<!doctype html>
 <html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>U9 MCP 联调控制台</title>
+<title>本地 U9 MCP 聊天</title>
 <style>
-body{max-width:900px;margin:32px auto;padding:0 16px;background:#f7f8fa;color:#172033;font:15px system-ui,sans-serif}main{background:#fff;border:1px solid #e2e7ef;border-radius:12px;padding:24px;box-shadow:0 8px 30px #15213a0d}input,textarea,button{font:inherit;border-radius:8px;padding:10px;border:1px solid #c8d1df}input,textarea{width:100%;box-sizing:border-box;margin:6px 0 14px}textarea{height:110px;resize:vertical}button{background:#155eef;color:#fff;border:0;cursor:pointer;margin-right:8px}button:disabled{opacity:.5}#status{color:#526071}.entry{border-top:1px solid #e8ecf2;padding:16px 0;white-space:pre-wrap;line-height:1.6}.user{color:#155eef}.error{color:#b42318}pre{background:#101828;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto;font-size:12px}</style>
-<main><h1>U9 MCP 联调控制台</h1><p id="status">输入控制台访问令牌后，先检查 MCP 工具，再提问。</p>
-<label>控制台访问令牌<input id="token" type="password" autocomplete="off" placeholder="CHAT_ACCESS_TOKEN"></label>
+body{max-width:900px;margin:32px auto;padding:0 16px;background:#f7f8fa;color:#172033;font:15px system-ui,sans-serif}main{background:#fff;border:1px solid #e2e7ef;border-radius:12px;padding:24px;box-shadow:0 8px 30px #15213a0d}textarea,button{font:inherit;border-radius:8px;padding:10px;border:1px solid #c8d1df}textarea{width:100%;box-sizing:border-box;margin:6px 0 14px;height:110px;resize:vertical}button{background:#155eef;color:#fff;border:0;cursor:pointer;margin-right:8px}button:disabled{opacity:.5}#status{color:#526071}.entry{border-top:1px solid #e8ecf2;padding:16px 0;white-space:pre-wrap;line-height:1.6}.user{color:#155eef}.error{color:#b42318}pre{background:#101828;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto;font-size:12px}</style>
+<main><h1>本地 U9 MCP 聊天</h1><p id="status">先检查远程 MCP 服务，再提问。</p>
 <button id="check">检查 MCP 连接</button><label>问题<textarea id="question" placeholder="例如：查询组织 XX 中料号 YY 的料品信息"></textarea></label><button id="ask">发送问题</button><section id="output"></section></main>
 <script>
-const el=id=>document.getElementById(id), output=el('output');el('token').value=sessionStorage.u9chat||'';
-function auth(){return {'X-Chat-Access-Token':el('token').value}}
+const el=id=>document.getElementById(id),output=el('output');
 function add(kind,text){const n=document.createElement('div');n.className='entry '+kind;n.textContent=text;output.prepend(n)}
-async function api(path,opts={}){sessionStorage.u9chat=el('token').value;const r=await fetch(path,{...opts,headers:{...auth(),...(opts.headers||{})}});const b=await r.json();if(!r.ok)throw Error(b.error||('HTTP '+r.status));return b}
+async function api(path,opts={}){const r=await fetch(path,opts);const b=await r.json();if(!r.ok)throw Error(b.error||('HTTP '+r.status));return b}
 el('check').onclick=async()=>{try{const b=await api('/api/status');el('status').textContent='模型：'+b.model+'；已发现工具：'+b.tools.join(', ')}catch(e){el('status').textContent='连接失败：'+e.message;el('status').className='error'}};
-el('ask').onclick=async()=>{const q=el('question').value.trim();if(!q)return;el('ask').disabled=true;add('user','你：'+q);try{const b=await api('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q})});add('assistant','助手：'+b.answer);if(b.trace?.length){const n=document.createElement('pre');n.textContent='MCP 调用记录\n'+JSON.stringify(b.trace,null,2);output.prepend(n)}}catch(e){add('error','错误：'+e.message)}finally{el('ask').disabled=false}};
+el('ask').onclick=async()=>{const q=el('question').value.trim();if(!q)return;el('ask').disabled=true;add('user','你：'+q);try{const b=await api('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q})});add('assistant','助手：'+b.answer);if(b.trace?.length){const n=document.createElement('pre');n.textContent='MCP 调用记录\\n'+JSON.stringify(b.trace,null,2);output.prepend(n)}}catch(e){add('error','错误：'+e.message)}finally{el('ask').disabled=false}};
 </script></html>"""

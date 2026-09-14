@@ -1,6 +1,7 @@
 .env
 .env.*
 !.env.example
+.local-chat.env
 .local/
 .venv/
 __pycache__/
