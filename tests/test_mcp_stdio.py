@@ -84,7 +84,7 @@ async def test_real_sdk_stdio_initialization_discovery_calls_and_errors():
             assert len(tools) == 1 and tools[0].name == "u9_get_item"
             tool = tools[0]
             assert tool.input_schema["additionalProperties"] is False
-            assert set(tool.input_schema["required"]) == {"organization_code", "item_code"}
+            assert set(tool.input_schema["required"]) == {"item_code"}
             assert tool.annotations.read_only_hint is True
             for code, error in [
                 ("SYN-ITEM", None),
@@ -92,9 +92,7 @@ async def test_real_sdk_stdio_initialization_discovery_calls_and_errors():
                 ("ERROR", "PERMISSION_DENIED"),
                 ("MALFORMED", "UPSTREAM_FORMAT_CHANGED"),
             ]:
-                result = await client.call_tool(
-                    tool.name, {"organization_code": "TEST-ORG", "item_code": code}
-                )
+                result = await client.call_tool(tool.name, {"item_code": code})
                 payload = result.structured_content
                 validate(payload, tool.output_schema)
                 assert json.loads(result.content[0].text) == payload
@@ -102,11 +100,12 @@ async def test_real_sdk_stdio_initialization_discovery_calls_and_errors():
                 if error:
                     assert payload["error"]["code"] == error
                 else:
+                    assert payload["data"]["query"]["organization_code"] == "TEST-ORG"
                     assert payload["data"]["total"] == (0 if code == "EMPTY" else 1)
                 assert "synthetic-secret" not in result.content[0].text
             count = len(calls)
             for arguments, error in [
-                ({"item_code": "SYN-ITEM"}, "INVALID_ARGUMENT"),
+                ({}, "INVALID_ARGUMENT"),
                 ({"organization_code": "OTHER", "item_code": "SYN-ITEM"}, "PERMISSION_DENIED"),
                 (
                     {"organization_code": "TEST-ORG", "item_code": "SYN-ITEM", "url": "bad"},

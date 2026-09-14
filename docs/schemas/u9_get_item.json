@@ -1,16 +1,24 @@
 {
   "name": "u9_get_item",
   "title": "查询单个料品",
-  "description": "在服务绑定的企业及授权组织中，按准确料号查询一个料品档案。必须提供 organization_code 和 item_code，保留编码前导零。返回品名、规格、组织以及库存/采购/销售单位；无匹配返回空列表。不支持模糊查询、跨组织查询、库存数量或金额统计，也不修改料品。",
+  "description": "在服务绑定的企业及授权组织中，按准确料号查询一个料品档案。只需提供 item_code，保留料号前导零。组织由服务端配置自动确定，不要向用户索要组织编码。返回品名、规格、组织以及库存/采购/销售单位；无匹配返回空列表。不支持模糊查询、跨组织查询、库存数量或金额统计，也不修改料品。",
   "inputSchema": {
     "additionalProperties": false,
     "properties": {
       "organization_code": {
-        "description": "服务配置中已授权的组织编码",
-        "maxLength": 100,
-        "minLength": 1,
-        "title": "Organization Code",
-        "type": "string"
+        "anyOf": [
+          {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "可省略，自动使用服务端已授权组织；仅供旧客户端核对，不能切换组织。",
+        "title": "Organization Code"
       },
       "item_code": {
         "description": "准确料号，保留前导零，不支持模糊匹配",
@@ -21,7 +29,6 @@
       }
     },
     "required": [
-      "organization_code",
       "item_code"
     ],
     "title": "ItemQuery",
@@ -165,31 +172,6 @@
         "title": "Item",
         "type": "object"
       },
-      "ItemQuery": {
-        "additionalProperties": false,
-        "properties": {
-          "organization_code": {
-            "description": "服务配置中已授权的组织编码",
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Organization Code",
-            "type": "string"
-          },
-          "item_code": {
-            "description": "准确料号，保留前导零，不支持模糊匹配",
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Item Code",
-            "type": "string"
-          }
-        },
-        "required": [
-          "organization_code",
-          "item_code"
-        ],
-        "title": "ItemQuery",
-        "type": "object"
-      },
       "QueryResult": {
         "additionalProperties": false,
         "properties": {
@@ -198,7 +180,7 @@
             "type": "string"
           },
           "query": {
-            "$ref": "#/$defs/ItemQuery"
+            "$ref": "#/$defs/ResolvedItemQuery"
           },
           "total": {
             "enum": [
@@ -239,6 +221,31 @@
           "items"
         ],
         "title": "QueryResult",
+        "type": "object"
+      },
+      "ResolvedItemQuery": {
+        "additionalProperties": false,
+        "properties": {
+          "organization_code": {
+            "description": "实际使用的服务端授权组织",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Organization Code",
+            "type": "string"
+          },
+          "item_code": {
+            "description": "准确料号，保留前导零，不支持模糊匹配",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Item Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organization_code",
+          "item_code"
+        ],
+        "title": "ResolvedItemQuery",
         "type": "object"
       }
     },

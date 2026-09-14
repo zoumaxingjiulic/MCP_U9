@@ -20,7 +20,8 @@ from starlette.routing import Route
 
 from .config import LocalChatSettings, load_local_chat_settings
 
-SYSTEM_PROMPT = """你是 U9 ERP 的只读查询助手。仅在需要 ERP 数据时调用提供的工具；
+SYSTEM_PROMPT = """你是 U9 ERP 的只读查询助手。查询料品只需准确料号，组织由服务端配置自动确定，
+不要向用户索要组织编码，也不要自行编造或传入组织编码。仅在需要 ERP 数据时调用提供的工具；
 不要编造料品、组织、状态或接口结果。若工具返回错误或空结果，直接说明。不要尝试写入、
 执行脚本、访问 URL 或使用未提供的工具。回答使用中文，并简洁说明是否调用了工具。"""
 
@@ -201,7 +202,7 @@ PAGE = """<!doctype html>
 <style>
 body{max-width:900px;margin:32px auto;padding:0 16px;background:#f7f8fa;color:#172033;font:15px system-ui,sans-serif}main{background:#fff;border:1px solid #e2e7ef;border-radius:12px;padding:24px;box-shadow:0 8px 30px #15213a0d}textarea,button{font:inherit;border-radius:8px;padding:10px;border:1px solid #c8d1df}textarea{width:100%;box-sizing:border-box;margin:6px 0 14px;height:110px;resize:vertical}button{background:#155eef;color:#fff;border:0;cursor:pointer;margin-right:8px}button:disabled{opacity:.5}#status{color:#526071}.entry{border-top:1px solid #e8ecf2;padding:16px 0;white-space:pre-wrap;line-height:1.6}.user{color:#155eef}.error{color:#b42318}pre{background:#101828;color:#e5e7eb;padding:12px;border-radius:8px;overflow:auto;font-size:12px}</style>
 <main><h1>本地 U9 MCP 聊天</h1><p id="status">先检查远程 MCP 服务，再提问。</p>
-<button id="check">检查 MCP 连接</button><label>问题<textarea id="question" placeholder="例如：查询组织 XX 中料号 YY 的料品信息"></textarea></label><button id="ask">发送问题</button><section id="output"></section></main>
+<button id="check">检查 MCP 连接</button><label>问题<textarea id="question" placeholder="例如：查询料号 YY 的名称、规格和单位"></textarea></label><button id="ask">发送问题</button><section id="output"></section></main>
 <script>
 const el=id=>document.getElementById(id),output=el('output');
 function add(kind,text){const n=document.createElement('div');n.className='entry '+kind;n.textContent=text;output.prepend(n)}

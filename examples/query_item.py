@@ -18,7 +18,7 @@ async def query(args):
         result = await client.call_tool(
             "u9_get_item",
             {
-                "organization_code": args.organization_code,
+                **({"organization_code": args.organization_code} if args.organization_code else {}),
                 "item_code": args.item_code,
             },
         )
@@ -29,7 +29,7 @@ async def query(args):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--env-file", required=True, type=Path)
-    parser.add_argument("--organization-code", required=True)
+    parser.add_argument("--organization-code", help="可省略，默认使用服务端授权组织")
     parser.add_argument("--item-code", required=True)
     raise SystemExit(asyncio.run(query(parser.parse_args())))
 

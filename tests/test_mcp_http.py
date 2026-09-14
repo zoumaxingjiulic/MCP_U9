@@ -143,9 +143,10 @@ async def test_streamable_http_auth_discovery_and_tool_call():
                     assert [tool.name for tool in tools] == ["u9_get_item"]
                     result = await client.call_tool(
                         "u9_get_item",
-                        {"organization_code": "TEST-ORG", "item_code": "SYN-ITEM"},
+                        {"item_code": "SYN-ITEM"},
                     )
                     assert not result.is_error
+                    assert result.structured_content["data"]["query"]["organization_code"] == "TEST-ORG"
                     assert result.structured_content["data"]["items"][0]["code"] == "SYN-ITEM"
             assert calls == ["auth", "SYN-ITEM"]
         finally:

@@ -10,14 +10,17 @@ from mcp import Client
 from mcp.client.streamable_http import streamable_http_client
 
 
-async def run(url: str, token: str, organization_code: str, item_code: str) -> None:
+async def run(url: str, token: str, organization_code: str | None, item_code: str) -> None:
     headers = {"Authorization": f"Bearer {token}"}
     async with httpx2.AsyncClient(headers=headers, trust_env=False) as http_client:
         transport = streamable_http_client(url, http_client=http_client)
         async with Client(transport, read_timeout_seconds=15) as client:
             result = await client.call_tool(
                 "u9_get_item",
-                {"organization_code": organization_code, "item_code": item_code},
+                {
+                    **({"organization_code": organization_code} if organization_code else {}),
+                    "item_code": item_code,
+                },
             )
             print(json.dumps(result.structured_content, ensure_ascii=False, indent=2))
 
@@ -26,7 +29,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default="http://127.0.0.1:8000/mcp")
     parser.add_argument("--token", default=os.getenv("MCP_ACCESS_TOKEN"))
-    parser.add_argument("--organization-code", required=True)
+    parser.add_argument("--organization-code", help="可省略，默认使用服务端授权组织")
     parser.add_argument("--item-code", required=True)
     args = parser.parse_args()
     if not args.token:

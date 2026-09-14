@@ -92,6 +92,15 @@ async def test_empty(settings):
     assert result.structured_content["data"]["items"] == []
 
 
+async def test_default_organization_uses_configured_scope(settings, row):
+    result = await run(settings, handler_for([row]), {"item_code": "SYN-ITEM"})
+    assert not result.is_error
+    assert result.structured_content["data"]["query"] == QUERY
+    row["m_org"]["m_code"] = "OTHER"
+    result = await run(settings, handler_for([row]), {"item_code": "SYN-ITEM"})
+    assert result.structured_content["error"]["code"] == "PERMISSION_DENIED"
+
+
 @pytest.mark.parametrize(
     "query",
     [

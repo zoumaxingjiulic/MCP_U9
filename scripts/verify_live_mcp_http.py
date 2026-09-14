@@ -31,12 +31,14 @@ async def verify(args) -> None:
             listed = await client.list_tools()
             assert len(listed.tools) == 1 and listed.tools[0].name == "u9_get_item"
             tool = listed.tools[0]
-            result = await client.call_tool("u9_get_item", expected["query"])
+            assert tool.input_schema["required"] == ["item_code"]
+            result = await client.call_tool("u9_get_item", {"item_code": expected["query"]["item_code"]})
             assert not result.is_error, "ERP tool failed; see sanitized server log"
             payload = result.structured_content
             validate(payload, tool.output_schema)
             assert json.loads(result.content[0].text) == payload
             data = payload["data"]
+            assert data["query"]["organization_code"] == expected["query"]["organization_code"]
             assert data["total"] == 1 and data["returned"] == 1 and not data["has_more"]
             item = data["items"][0]
             for field, value in expected["item"].items():

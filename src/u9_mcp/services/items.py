@@ -3,7 +3,7 @@ import asyncio
 from ..adapters.items import adapt_item
 from ..clients.u9 import U9Client
 from ..errors import BusinessError
-from ..schemas import ItemQuery, QueryResult
+from ..schemas import ItemQuery, QueryResult, ResolvedItemQuery
 
 
 class ItemService:
@@ -12,8 +12,11 @@ class ItemService:
 
     async def get_item(self, query: ItemQuery) -> QueryResult:
         settings = self.client.settings
-        if query.organization_code != settings.organization_code:
+        if query.organization_code is not None and query.organization_code != settings.organization_code:
             raise BusinessError("PERMISSION_DENIED", "只能查询服务配置中已授权的组织。")
+        resolved_query = ResolvedItemQuery(
+            organization_code=settings.organization_code, item_code=query.item_code
+        )
         try:
             async with asyncio.timeout(50):
                 rows = await self.client.query_item(query.item_code)
@@ -24,12 +27,12 @@ class ItemService:
         if len(rows) > 1:
             raise BusinessError("AMBIGUOUS_ENTITY", "准确料号返回多个对象，请核实 ERP 组织与档案唯一性。")
         items = [
-            adapt_item(row, organization_code=query.organization_code, item_code=query.item_code)
+            adapt_item(row, organization_code=settings.organization_code, item_code=query.item_code)
             for row in rows
         ]
         return QueryResult(
             enterprise_code=settings.enterprise_code,
-            query=query,
+            query=resolved_query,
             total=len(items),
             returned=len(items),
             items=items,

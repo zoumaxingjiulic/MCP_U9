@@ -19,7 +19,7 @@ def definition() -> types.Tool:
         title="查询单个料品",
         description=(
             "在服务绑定的企业及授权组织中，按准确料号查询一个料品档案。"
-            "必须提供 organization_code 和 item_code，保留编码前导零。"
+            "只需提供 item_code，保留料号前导零。组织由服务端配置自动确定，不要向用户索要组织编码。"
             "返回品名、规格、组织以及库存/采购/销售单位；无匹配返回空列表。"
             "不支持模糊查询、跨组织查询、库存数量或金额统计，也不修改料品。"
         ),
@@ -41,7 +41,7 @@ async def execute(service: ItemService, arguments: dict) -> types.CallToolResult
             success=False,
             error=ErrorInfo(
                 code="INVALID_ARGUMENT",
-                message="请提供准确的 organization_code 和 item_code 字符串；不接受额外字段、通配符或首尾空白。",
+                message="请提供准确的 item_code 字符串；组织编码可省略，不接受额外字段、通配符或首尾空白。",
                 retryable=False,
             ),
         )

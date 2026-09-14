@@ -27,7 +27,7 @@ uv run u9-mcp --env-file .env
 也可用项目提供的官方 SDK 客户端查询（下列编码是虚构示例，需替换为已授权组织及真实料号）：
 
 ```powershell
-uv run python examples/query_item.py --env-file .env --organization-code TEST-ORG --item-code SYN-ITEM
+uv run python examples/query_item.py --env-file .env --item-code SYN-ITEM
 ```
 
 ## Docker 部署
@@ -65,7 +65,6 @@ docker compose logs --tail=100 u9-mcp
 export MCP_ACCESS_TOKEN='服务器中的同一令牌'
 uv run python examples/query_item_http.py \
   --url https://mcp.example.com/mcp \
-  --organization-code TEST-ORG \
   --item-code SYN-ITEM
 ```
 
@@ -103,10 +102,10 @@ uv run u9-local-chat --env-file .local-chat.env
 工具输入：
 
 ```json
-{"organization_code":"TEST-ORG","item_code":"SYN-ITEM"}
+{"item_code":"SYN-ITEM"}
 ```
 
-完整输入和输出定义见 [JSON Schema](docs/schemas/u9_get_item.json) 与 [工具契约](docs/tool-contract.md)。没有物料匹配时返回空列表；无权限、超时和接口格式变化均返回错误，不伪装为空结果。
+组织自动使用服务器 `U9_ORG_CODE` 配置，无需在聊天中提供。完整输入和输出定义见 [JSON Schema](docs/schemas/u9_get_item.json) 与 [工具契约](docs/tool-contract.md)。没有物料匹配时返回空列表；无权限、超时和接口格式变化均返回错误，不伪装为空结果。
 
 ## 代码结构
 
